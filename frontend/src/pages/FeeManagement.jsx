@@ -9,6 +9,7 @@ const FeeManagement = () => {
     const [batches, setBatches] = useState([]);
     const [selectedBatch, setSelectedBatch] = useState('');
     const [fees, setFees] = useState([]);
+    const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -27,6 +28,15 @@ const FeeManagement = () => {
                 const url = selectedBatch ? `/fees?batchId=${selectedBatch}` : `/fees`;
                 const { data } = await axios.get(url);
                 setFees(data);
+
+                // Fetch students count if batch is selected
+                if (selectedBatch) {
+                    const stuRes = await axios.get('/students');
+                    const batchStudents = stuRes.data.filter(s => s.batchIds?.some(b => (b._id || b) === selectedBatch));
+                    setStudents(batchStudents);
+                } else {
+                    setStudents([]);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -138,6 +148,9 @@ const FeeManagement = () => {
                                 <option value="">Select a batch</option>
                                 {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                             </select>
+                            {selectedBatch && (
+                                <p className="text-xs text-blue-600 mt-1 font-semibold">{students.length} students currently enrolled</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Month Label</label>
@@ -160,7 +173,16 @@ const FeeManagement = () => {
                     </div>
 
                     <div className="overflow-x-auto p-4 max-h-[600px]">
-                        {loading ? <p className="text-center p-4">Loading ledger...</p> : fees.length === 0 ? <p className="text-center text-gray-400 p-8">No fee records found. Generate them first.</p> : (
+                        {loading ? <p className="text-center p-4">Loading ledger...</p> : fees.length === 0 ? (
+                            <div className="text-center text-gray-500 p-8">
+                                <p className="text-lg font-semibold mb-2">No fee records found.</p>
+                                {selectedBatch ? (
+                                    <p>There are {students.length} students enrolled in this batch. Fill out the form on the left to generate their invoices.</p>
+                                ) : (
+                                    <p>Select a batch and generate invoices to get started.</p>
+                                )}
+                            </div>
+                        ) : (
                             <table className="w-full text-left text-sm">
                                 <thead>
                                     <tr className="text-gray-500 uppercase tracking-wider border-b border-gray-200">

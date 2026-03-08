@@ -32,7 +32,7 @@ const AttendanceGrid = () => {
                 // 1. Get all students (In real app, get students specific to this batch)
                 const stuRes = await axios.get('/students');
                 // Filter locally for now
-                const batchStudents = stuRes.data.filter(s => s.batchIds?.includes(selectedBatch));
+                const batchStudents = stuRes.data.filter(s => s.batchIds?.some(b => (b._id || b) === selectedBatch));
                 setStudents(batchStudents);
 
                 // 2. Get existing attendance

@@ -5,6 +5,7 @@ import { Plus, X } from 'lucide-react';
 const Students = () => {
     const [students, setStudents] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
         name: '', email: '', password: '', phone: '', enrollmentNo: ''
     });
@@ -25,12 +26,17 @@ const Students = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('/students', formData);
+            if (editingId) {
+                await axios.put(`/students/${editingId}`, formData);
+            } else {
+                await axios.post('/students', formData);
+            }
             setIsModalOpen(false);
+            setEditingId(null);
             setFormData({ name: '', email: '', password: '', phone: '', enrollmentNo: '' });
             fetchStudents();
         } catch (error) {
-            alert(error.response?.data?.message || 'Failed to add student');
+            alert(error.response?.data?.message || 'Failed to save student');
         }
     };
 
@@ -39,7 +45,11 @@ const Students = () => {
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-800">Students Management</h1>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => {
+                        setEditingId(null);
+                        setFormData({ name: '', email: '', password: '', phone: '', enrollmentNo: '' });
+                        setIsModalOpen(true);
+                    }}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700"
                 >
                     <Plus size={20} />
@@ -69,7 +79,22 @@ const Students = () => {
                                     <td className="p-4 font-medium text-gray-800">{student.userId?.name || 'Unknown'}</td>
                                     <td className="p-4 text-gray-500">{student.userId?.email || 'N/A'}</td>
                                     <td className="p-4">
-                                        <button className="text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                                        <button
+                                            onClick={() => {
+                                                setEditingId(student._id);
+                                                setFormData({
+                                                    name: student.userId?.name || '',
+                                                    email: student.userId?.email || '',
+                                                    password: '', // Optional for edit
+                                                    phone: student.userId?.phone || '',
+                                                    enrollmentNo: student.enrollmentNo || ''
+                                                });
+                                                setIsModalOpen(true);
+                                            }}
+                                            className="text-blue-600 hover:text-blue-800 font-medium"
+                                        >
+                                            Edit
+                                        </button>
                                     </td>
                                 </tr>
                             ))
@@ -83,8 +108,8 @@ const Students = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-800">Add New Student</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-800"><X size={24} /></button>
+                            <h2 className="text-xl font-bold text-gray-800">{editingId ? 'Edit Student' : 'Add New Student'}</h2>
+                            <button onClick={() => { setIsModalOpen(false); setEditingId(null); setFormData({ name: '', email: '', password: '', phone: '', enrollmentNo: '' }); }} className="text-gray-500 hover:text-gray-800"><X size={24} /></button>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -96,8 +121,10 @@ const Students = () => {
                                 <input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full p-2 border border-gray-300 rounded-lg" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Temporary Password</label>
-                                <input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full p-2 border border-gray-300 rounded-lg" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {editingId ? 'New Password (Optional)' : 'Temporary Password'}
+                                </label>
+                                <input type="password" required={!editingId} value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full p-2 border border-gray-300 rounded-lg" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>

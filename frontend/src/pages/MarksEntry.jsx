@@ -36,7 +36,7 @@ const MarksEntry = () => {
             try {
                 // Get batch roster
                 const stuRes = await axios.get('/students');
-                const batchStudents = stuRes.data.filter(s => s.batchIds?.includes(selectedBatch));
+                const batchStudents = stuRes.data.filter(s => s.batchIds?.some(b => (b._id || b) === selectedBatch));
                 setStudents(batchStudents);
 
                 // Init blank marks mapping for 'new'

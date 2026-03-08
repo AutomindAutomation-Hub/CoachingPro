@@ -93,4 +93,39 @@ router.post('/enroll', protect, async (req, res) => {
     }
 });
 
+// Update student
+router.put('/:id', protect, admin, async (req, res) => {
+    try {
+        const student = await Student.findById(req.params.id);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        const user = await User.findById(student.userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const { name, email, phone, enrollmentNo, dob, address, batchIds, password } = req.body;
+
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+        if (password) user.password = password; // Assuming User model hashes password on save
+
+        await user.save();
+
+        if (enrollmentNo) student.enrollmentNo = enrollmentNo;
+        if (dob) student.dob = dob;
+        if (address) student.address = address;
+        if (batchIds) student.batchIds = batchIds;
+
+        await student.save();
+
+        res.json({ message: 'Student updated successfully', student, user });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;

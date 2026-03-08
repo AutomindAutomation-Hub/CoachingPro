@@ -45,4 +45,27 @@ router.get('/my-batches', protect, async (req, res) => {
     }
 });
 
+// Update a teacher
+router.put('/:id', protect, admin, async (req, res) => {
+    try {
+        const teacher = await User.findById(req.params.id);
+        if (!teacher || teacher.role !== 'Teacher') {
+            return res.status(404).json({ message: 'Teacher not found' });
+        }
+
+        const { name, email, phone, password } = req.body;
+
+        if (name) teacher.name = name;
+        if (email) teacher.email = email;
+        if (phone) teacher.phone = phone;
+        if (password) teacher.password = password;
+
+        await teacher.save();
+
+        res.json({ message: 'Teacher updated successfully', teacher });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;
