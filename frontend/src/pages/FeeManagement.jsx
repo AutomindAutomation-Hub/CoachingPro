@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { IndianRupee, Printer, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -76,7 +76,8 @@ const FeeManagement = () => {
 
             setRefreshTrigger(prev => prev + 1);
         } catch (err) {
-            alert('Failed to record payment');
+            console.error('Payment Error:', err);
+            alert('Failed to record payment or generate receipt.');
         }
     };
 
@@ -99,7 +100,7 @@ const FeeManagement = () => {
         doc.text(`Batch/Course: ${batchName}`, 20, 90);
         doc.text(`Fee Period: ${record.month}`, 20, 100);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 115,
             head: [['Description', 'Amount (INR)']],
             body: [

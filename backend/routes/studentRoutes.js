@@ -5,12 +5,12 @@ const Student = require('../models/Student');
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // Get all students
-router.get('/', protect, admin, async (req, res) => {
+router.get('/', protect, async (req, res) => {
     try {
         // Find users with role Student
         const users = await User.find({ role: 'Student' }).select('-password');
         // For full details, would join with Student collection
-        const studentsData = await Student.find().populate('userId').populate('batchIds');
+        const studentsData = await Student.find().populate('userId').populate('batchIds').populate('parentId', 'name email');
         res.json(studentsData);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -39,7 +39,7 @@ router.get('/me', protect, async (req, res) => {
 // Create student
 router.post('/', protect, admin, async (req, res) => {
     try {
-        const { name, email, password, phone, enrollmentNo, dob, address, batchIds } = req.body;
+        const { name, email, password, phone, enrollmentNo, dob, address, batchIds, parentId } = req.body;
 
         const userExists = await User.findOne({ email });
         if (userExists) return res.status(400).json({ message: 'User already exists' });
@@ -53,7 +53,8 @@ router.post('/', protect, admin, async (req, res) => {
             enrollmentNo,
             dob,
             address,
-            batchIds: batchIds || []
+            batchIds: batchIds || [],
+            parentId: parentId || null
         });
 
         res.status(201).json({ user, studentProfile });
@@ -106,7 +107,7 @@ router.put('/:id', protect, admin, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const { name, email, phone, enrollmentNo, dob, address, batchIds, password } = req.body;
+        const { name, email, phone, enrollmentNo, dob, address, batchIds, password, parentId } = req.body;
 
         if (name) user.name = name;
         if (email) user.email = email;
@@ -119,10 +120,31 @@ router.put('/:id', protect, admin, async (req, res) => {
         if (dob) student.dob = dob;
         if (address) student.address = address;
         if (batchIds) student.batchIds = batchIds;
+        if (parentId !== undefined) student.parentId = parentId === '' ? null : parentId; // Allow unlinking by sending empty string
 
         await student.save();
 
         res.json({ message: 'Student updated successfully', student, user });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Delete student
+router.delete('/:id', protect, admin, async (req, res) => {
+    try {
+        const student = await Student.findById(req.params.id);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        // Delete associated User account
+        await User.findByIdAndDelete(student.userId);
+
+        // Delete Student profile
+        await Student.findByIdAndDelete(req.params.id);
+
+        res.json({ message: 'Student removed successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

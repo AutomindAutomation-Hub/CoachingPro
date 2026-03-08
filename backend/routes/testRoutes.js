@@ -5,6 +5,19 @@ const Student = require('../models/Student');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
 
+// Student specific: Get tests for a specific student id
+router.get('/student/:studentId', protect, async (req, res) => {
+    try {
+        const tests = await Test.find({ "results.studentId": req.params.studentId })
+            .select('testName date maxMarks results batchId')
+            .populate('batchId', 'name subject')
+            .sort({ date: 1 }); // Sort ascending for graphing
+        res.json(tests);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Get all tests for a specific batch
 router.get('/:batchId', protect, async (req, res) => {
     try {
@@ -51,19 +64,6 @@ router.put('/:id', protect, async (req, res) => {
         await test.save();
 
         res.json({ message: 'Marks updated successfully', test });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Student specific: Get tests for a specific student id
-router.get('/student/:studentId', protect, async (req, res) => {
-    try {
-        const tests = await Test.find({ "results.studentId": req.params.studentId })
-            .select('testName date maxMarks results batchId')
-            .populate('batchId', 'name subject')
-            .sort({ date: 1 }); // Sort ascending for graphing
-        res.json(tests);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

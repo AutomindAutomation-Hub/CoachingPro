@@ -11,7 +11,7 @@ const TeacherDashboard = () => {
     useEffect(() => {
         const fetchMyBatches = async () => {
             try {
-                const { data } = await axios.get('/teacher/my-batches');
+                const { data } = await axios.get('/teachers/my-batches');
                 setMyBatches(data);
             } catch (error) {
                 console.error("Failed to fetch batches", error);

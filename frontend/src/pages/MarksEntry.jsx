@@ -22,7 +22,7 @@ const MarksEntry = () => {
     const [message, setMessage] = useState(null);
 
     useEffect(() => {
-        const url = user?.role === 'Teacher' ? '/teacher/my-batches' : '/batches';
+        const url = user?.role === 'Teacher' ? '/teachers/my-batches' : '/batches';
         axios.get(url).then(res => setBatches(res.data));
     }, [user?.role]);
 

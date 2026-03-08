@@ -6,7 +6,11 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // Get all batches
 router.get('/', protect, async (req, res) => {
     try {
-        const batches = await Batch.find().populate('teacherId', 'name email');
+        let query = {};
+        if (req.user.role === 'Teacher') {
+            query.teacherId = req.user._id;
+        }
+        const batches = await Batch.find(query).populate('teacherId', 'name email');
         res.json(batches);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -42,6 +46,22 @@ router.put('/:id', protect, admin, async (req, res) => {
 
         const updatedBatch = await batch.save();
         res.json(updatedBatch);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Delete batch
+router.delete('/:id', protect, admin, async (req, res) => {
+    try {
+        const batch = await Batch.findById(req.params.id);
+
+        if (!batch) {
+            return res.status(404).json({ message: 'Batch not found' });
+        }
+
+        await Batch.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Batch removed successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

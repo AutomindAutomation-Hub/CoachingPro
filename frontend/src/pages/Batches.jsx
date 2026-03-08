@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Trash2 } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 const Batches = () => {
+    const { user } = useAuthStore();
     const [batches, setBatches] = useState([]);
     const [teachers, setTeachers] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,21 +51,35 @@ const Batches = () => {
         }
     };
 
+    const handleDelete = async (id) => {
+        if (!confirm('Are you sure you want to delete this batch? All associated data might be affected.')) return;
+        try {
+            await axios.delete(`/batches/${id}`);
+            setIsModalOpen(false);
+            setEditingId(null);
+            fetchBatches();
+        } catch (error) {
+            alert(error.response?.data?.message || 'Failed to delete batch');
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-800">Batches Management</h1>
-                <button
-                    onClick={() => {
-                        setEditingId(null);
-                        setFormData({ name: '', teacherId: '', timing: '', subject: '', monthlyFee: '' });
-                        setIsModalOpen(true);
-                    }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700"
-                >
-                    <Plus size={20} />
-                    <span>Create Batch</span>
-                </button>
+                {user?.role === 'Admin' && (
+                    <button
+                        onClick={() => {
+                            setEditingId(null);
+                            setFormData({ name: '', teacherId: '', timing: '', subject: '', monthlyFee: '' });
+                            setIsModalOpen(true);
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700"
+                    >
+                        <Plus size={20} />
+                        <span>Create Batch</span>
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -81,24 +97,26 @@ const Batches = () => {
                             <p className="text-gray-600 text-sm mb-2"><span className="font-semibold">Instructor:</span> {batch.teacherId?.name || 'Unassigned'}</p>
                             <p className="text-gray-600 text-sm mb-2"><span className="font-semibold">Timing:</span> {batch.timing}</p>
                             <p className="text-gray-600 text-sm"><span className="font-semibold">Fee:</span> ₹{batch.monthlyFee}/mo</p>
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
-                                <button
-                                    onClick={() => {
-                                        setEditingId(batch._id);
-                                        setFormData({
-                                            name: batch.name || '',
-                                            teacherId: batch.teacherId?._id || '',
-                                            timing: batch.timing || '',
-                                            subject: batch.subject || '',
-                                            monthlyFee: batch.monthlyFee || ''
-                                        });
-                                        setIsModalOpen(true);
-                                    }}
-                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                >
-                                    Manage Batch
-                                </button>
-                            </div>
+                            {user?.role === 'Admin' && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            setEditingId(batch._id);
+                                            setFormData({
+                                                name: batch.name || '',
+                                                teacherId: batch.teacherId?._id || '',
+                                                timing: batch.timing || '',
+                                                subject: batch.subject || '',
+                                                monthlyFee: batch.monthlyFee || ''
+                                            });
+                                            setIsModalOpen(true);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                    >
+                                        Manage Batch
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
@@ -136,9 +154,16 @@ const Batches = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Fee (₹)</label>
                                 <input type="number" required value={formData.monthlyFee} onChange={e => setFormData({ ...formData, monthlyFee: e.target.value })} className="w-full p-2 border border-gray-300 rounded-lg" />
                             </div>
-                            <button type="submit" className="w-full bg-blue-600 text-white p-2.5 rounded-lg font-bold hover:bg-blue-700">
-                                {editingId ? 'Save Changes' : 'Create Batch'}
-                            </button>
+                            <div className="flex space-x-3 pt-2">
+                                {editingId && (
+                                    <button type="button" onClick={() => handleDelete(editingId)} className="bg-red-100 text-red-600 p-2.5 rounded-lg font-bold hover:bg-red-200 flex items-center justify-center aspect-square">
+                                        <Trash2 size={20} />
+                                    </button>
+                                )}
+                                <button type="submit" className="flex-1 bg-blue-600 text-white p-2.5 rounded-lg font-bold hover:bg-blue-700">
+                                    {editingId ? 'Save Changes' : 'Create Batch'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

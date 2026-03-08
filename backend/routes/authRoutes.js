@@ -79,4 +79,15 @@ router.get('/parent/children', protect, async (req, res) => {
     }
 });
 
+// @route GET /api/auth/parents
+// Get all parents for admin dropdowns
+router.get('/parents', protect, async (req, res) => {
+    try {
+        const parents = await User.find({ role: 'Parent' }).select('-password');
+        res.json(parents);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;

@@ -6,6 +6,19 @@ const User = require('../models/User');
 const sendSMS = require('../utils/sendSMS');
 const { protect } = require('../middleware/authMiddleware');
 
+// Student specific: Get attendance for a specific student id
+router.get('/student/:studentId', protect, async (req, res) => {
+    try {
+        const attendance = await Attendance.find({ studentId: req.params.studentId })
+            .select('date status batchId')
+            .populate('batchId', 'name subject')
+            .sort({ date: -1 }); // Sort descending (latest first)
+        res.json(attendance);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Get attendance for a batch on a specific date
 router.get('/:batchId/:date', protect, async (req, res) => {
     try {
