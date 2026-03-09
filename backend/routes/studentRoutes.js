@@ -41,23 +41,42 @@ router.post('/', protect, admin, async (req, res) => {
     try {
         const { name, email, password, phone, enrollmentNo, dob, address, batchIds, parentId } = req.body;
 
-        const userExists = await User.findOne({ email });
-        if (userExists) return res.status(400).json({ message: 'User already exists' });
+        let user = await User.findOne({ email });
+        if (user) {
+            // If User exists, check if they are already mapped to a Student profile
+            const existingStudent = await Student.findOne({ userId: user._id });
+            if (existingStudent || user.role !== 'Student') {
+                return res.status(400).json({ message: 'User with this email already exists' });
+            }
+            // It's an orphaned User (created due to a previous student creation failure)
+            await User.findByIdAndDelete(user._id);
+        }
 
-        // Create User first
-        const user = await User.create({ name, email, password, phone, role: 'Student' });
+        const enrollmentExists = await Student.findOne({ enrollmentNo });
+        if (enrollmentExists) return res.status(400).json({ message: 'Enrollment Number already exists' });
 
-        // Then create Student profile
-        const studentProfile = await Student.create({
-            userId: user._id,
-            enrollmentNo,
-            dob,
-            address,
-            batchIds: batchIds || [],
-            parentId: parentId || null
-        });
+        try {
+            // Create User first
+            user = await User.create({ name, email, password, phone, role: 'Student' });
 
-        res.status(201).json({ user, studentProfile });
+            // Then create Student profile
+            const studentProfile = await Student.create({
+                userId: user._id,
+                enrollmentNo,
+                dob,
+                address,
+                batchIds: batchIds || [],
+                parentId: parentId === '' ? undefined : parentId
+            });
+
+            res.status(201).json({ user, studentProfile });
+        } catch (error) {
+            // Clean up the user if student profile creation fails
+            if (user && user._id) {
+                await User.findByIdAndDelete(user._id);
+            }
+            res.status(500).json({ message: error.message });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
