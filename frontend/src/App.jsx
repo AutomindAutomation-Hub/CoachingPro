@@ -15,6 +15,7 @@ import ParentDashboard from './pages/ParentDashboard';
 import MarksEntry from './pages/MarksEntry';
 import FeeManagement from './pages/FeeManagement';
 import StudentProgress from './pages/StudentProgress';
+import StudentFees from './pages/StudentFees';
 import Quizzes from './pages/Quizzes';
 import Enrollment from './pages/Enrollment';
 import { useAuthStore } from './store/authStore';
@@ -90,6 +91,7 @@ function App() {
           <Route path="fees" element={<ProtectedRoute allowedRoles={['Admin']}><FeeManagement /></ProtectedRoute>} />
           <Route path="progress" element={<ProtectedRoute allowedRoles={['Student', 'Parent']}><StudentProgress /></ProtectedRoute>} />
           <Route path="enrollment" element={<ProtectedRoute allowedRoles={['Student']}><Enrollment /></ProtectedRoute>} />
+          <Route path="my-fees" element={<ProtectedRoute allowedRoles={['Student']}><StudentFees /></ProtectedRoute>} />
 
           {/* Phase 4 Routes */}
           <Route path="quizzes" element={<ProtectedRoute allowedRoles={['Admin', 'Teacher', 'Student']}><Quizzes /></ProtectedRoute>} />

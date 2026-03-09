@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { Users, IndianRupee, Activity, CheckCircle, Clock, AlertTriangle, Calendar, Award } from 'lucide-react';
+import { Users, IndianRupee, Activity, CheckCircle, Clock, AlertTriangle, Calendar, Award, Printer } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 
 const ParentDashboard = () => {
@@ -54,6 +56,44 @@ const ParentDashboard = () => {
         fetchParentData();
     }, [user._id]);
 
+    const generateReceiptPDF = (studentName, batchName, record, amountJustPaid) => {
+        const doc = new jsPDF();
+
+        doc.setFontSize(22);
+        doc.setTextColor(41, 128, 185);
+        doc.text("CoachingPro Institute", 105, 20, { align: "center" });
+
+        doc.setFontSize(16);
+        doc.setTextColor(0, 0, 0);
+        doc.text("FEE RECEIPT", 105, 30, { align: "center" });
+
+        doc.setFontSize(11);
+        doc.text(`Receipt ID: ${record.receiptId || 'REC-INITIAL'}`, 20, 50);
+        doc.text(`Date: ${format(new Date(), 'dd MMM yyyy')}`, 20, 60);
+
+        doc.text(`Student Name: ${studentName}`, 20, 80);
+        doc.text(`Batch/Course: ${batchName}`, 20, 90);
+        doc.text(`Fee Period: ${record.month}`, 20, 100);
+
+        autoTable(doc, {
+            startY: 115,
+            head: [['Description', 'Amount (INR)']],
+            body: [
+                ['Total Course / Monthly Fee Due', `Rs. ${record.dueAmount}`],
+                ['Amount Paid Now', `Rs. ${amountJustPaid}`],
+                ['Total Paid Till Date', `Rs. ${record.paidAmount}`],
+                ['Remaining Balance', `Rs. ${record.dueAmount - record.paidAmount}`]
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [41, 128, 185] }
+        });
+
+        doc.setFontSize(10);
+        doc.text("Thank you for your timely payment.", 105, 200, { align: "center" });
+
+        doc.save(`Receipt_${studentName}_${record.month}.pdf`);
+    };
+
     const handleOnlinePayment = async (fee) => {
         if (fee.status === 'Paid') return;
 
@@ -66,8 +106,13 @@ const ParentDashboard = () => {
             const { data } = await axios.post(`/fees/${fee._id}/pay-online`, { amountPaid: amountToPay });
             alert(`Payment Successful! TXN ID: ${data.fee.receiptId}`);
 
+            // Generate receipt
+            const paidFee = data.fee;
+            const currentChild = childrenData[selectedChildIndex];
+            generateReceiptPDF(currentChild.student.userId.name, fee.batchId?.name || 'Batch', paidFee, amountToPay);
+
             // Refresh data (could be optimized, but ok for now)
-            const feeRes = await axios.get(`/fees/student/${childrenData[selectedChildIndex].student.userId._id}`);
+            const feeRes = await axios.get(`/fees/student/${currentChild.student.userId._id}`);
             const updatedKids = [...childrenData];
             updatedKids[selectedChildIndex].fees = feeRes.data;
             setChildrenData(updatedKids);
@@ -195,7 +240,7 @@ const ParentDashboard = () => {
                                 </div>
                                 <div>
                                     <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${rec.status === 'Present' ? 'bg-green-100 text-green-800' :
-                                            rec.status === 'Late' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                                        rec.status === 'Late' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
                                         }`}>
                                         {rec.status}
                                     </span>
@@ -266,12 +311,20 @@ const ParentDashboard = () => {
                                 <div className="text-right flex flex-col items-end gap-1">
                                     <p className="font-bold text-gray-800">₹{f.dueAmount}</p>
                                     {getStatusBadge(f.status, f.dueDate)}
-                                    {f.status !== 'Paid' && (
+                                    {f.status !== 'Paid' ? (
                                         <button
                                             onClick={() => handleOnlinePayment(f)}
                                             className="mt-2 text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition shadow-sm"
                                         >
                                             Pay ₹{f.dueAmount - f.paidAmount} Now
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => {
+                                            const currentChild = childrenData.find(c => c.student.userId._id === f.studentId);
+                                            generateReceiptPDF(currentChild?.student.userId.name || 'Student', f.batchId?.name || 'Batch', f, f.dueAmount);
+                                        }} className="text-blue-600 hover:text-blue-800 flex flex-col items-center justify-end w-full" title="Download Receipt">
+                                            <Printer size={20} />
+                                            <span className="text-[10px] uppercase font-bold mt-1">Receipt</span>
                                         </button>
                                     )}
                                 </div>

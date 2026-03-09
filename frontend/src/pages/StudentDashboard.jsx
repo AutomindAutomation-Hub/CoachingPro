@@ -1,6 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 import { QRCodeSVG } from 'qrcode.react';
-import { BookOpen, TrendingUp, BrainCircuit } from 'lucide-react';
+import { BookOpen, TrendingUp, BrainCircuit, IndianRupee } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const StudentDashboard = () => {
@@ -74,6 +74,16 @@ const StudentDashboard = () => {
                         <div>
                             <h3 className="text-2xl font-bold text-gray-800 mb-1">Online Quizzes</h3>
                             <p className="text-gray-500">Take active MCQ quizzes specifically assigned to your batch.</p>
+                        </div>
+                    </Link>
+
+                    <Link to="/my-fees" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex items-center space-x-6 hover:shadow-md transition group">
+                        <div className="p-5 bg-emerald-100 text-emerald-600 rounded-2xl group-hover:scale-110 transition-transform">
+                            <IndianRupee size={40} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-bold text-gray-800 mb-1">Fees & Payments</h3>
+                            <p className="text-gray-500">View your fee ledgers and make online mock payments easily.</p>
                         </div>
                     </Link>
                 </div>
