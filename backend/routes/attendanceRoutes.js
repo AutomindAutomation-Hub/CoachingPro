@@ -41,7 +41,7 @@ router.get('/:batchId/:date', protect, async (req, res) => {
 // Mark bulk attendance
 router.post('/bulk', protect, async (req, res) => {
     try {
-        const { batchId, date, attendanceData } = req.body;
+        const { batchId, date, attendanceData, notes } = req.body;
         // attendanceData is an array: [{ studentId: '...', status: 'Present' }, ...]
 
         let savedRecords = [];
@@ -57,6 +57,7 @@ router.post('/bulk', protect, async (req, res) => {
             if (att) {
                 att.status = record.status;
                 att.markedBy = req.user._id;
+                att.notes = notes || att.notes;
                 await att.save();
             } else {
                 att = await Attendance.create({
@@ -64,7 +65,8 @@ router.post('/bulk', protect, async (req, res) => {
                     batchId,
                     date: new Date(date),
                     status: record.status,
-                    markedBy: req.user._id
+                    markedBy: req.user._id,
+                    notes: notes
                 });
             }
 
@@ -99,7 +101,7 @@ router.post('/bulk', protect, async (req, res) => {
 // Scan QR Code to mark attendance
 router.post('/scan', protect, async (req, res) => {
     try {
-        const { studentId, batchId } = req.body; // QR content might be stringified JSON
+        const { studentId, batchId, notes } = req.body; // QR content might be stringified JSON
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -118,7 +120,8 @@ router.post('/scan', protect, async (req, res) => {
             batchId,
             date: today,
             status: 'Present',
-            markedBy: req.user._id
+            markedBy: req.user._id,
+            notes: notes
         });
 
         res.status(201).json({ message: 'Attendance marked Present via QR!', attendance: att });

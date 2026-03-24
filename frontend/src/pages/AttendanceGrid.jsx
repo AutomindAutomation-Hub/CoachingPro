@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Save, AlertCircle } from 'lucide-react';
+import { Save, AlertCircle, Calendar, Users, ClipboardCheck, Clock, UserCheck, UserX, UserMinus, Search, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AttendanceGrid = () => {
     const { user } = useAuthStore();
@@ -10,6 +11,7 @@ const AttendanceGrid = () => {
     const [students, setStudents] = useState([]);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendanceData, setAttendanceData] = useState([]); // { studentId: status }
+    const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
 
@@ -25,25 +27,22 @@ const AttendanceGrid = () => {
         setLoading(true);
         setMessage(null);
 
-        // This is complex - usually we'd have a single API for "Get Roster with Attendance for Date"
-        // For Phase 2, let's fetch students, then fetch attendance records and merge them
         const loadRoster = async () => {
             try {
-                // 1. Get all students (In real app, get students specific to this batch)
-                const stuRes = await axios.get('/students');
-                // Filter locally for now
-                const batchStudents = stuRes.data.filter(s => s.batchIds?.some(b => (b._id || b) === selectedBatch));
+                // Fetch only students for this batch
+                const stuRes = await axios.get(`/students/batch/${selectedBatch}`);
+                const batchStudents = stuRes.data;
+                console.log(`[Attendance] Loaded ${batchStudents.length} students for batch ${selectedBatch}`);
                 setStudents(batchStudents);
 
-                // 2. Get existing attendance
                 const attRes = await axios.get(`/attendance/${selectedBatch}/${date}`);
 
-                // Map it
                 const existingData = {};
-                // Pre-fill default status as 'Present' for new, or existing status
                 batchStudents.forEach(stu => {
-                    const record = attRes.data.find(r => r.studentId._id === stu.userId._id);
-                    existingData[stu.userId._id] = record ? record.status : 'Present';
+                    const userId = stu.userId?._id || stu.userId; // Handle populated and unpopulated
+                    if (!userId) return;
+                    const record = attRes.data.find(r => (r.studentId?._id || r.studentId) === userId);
+                    existingData[userId] = record ? record.status : 'Present';
                 });
                 setAttendanceData(existingData);
 
@@ -72,7 +71,8 @@ const AttendanceGrid = () => {
             await axios.post('/attendance/bulk', {
                 batchId: selectedBatch,
                 date,
-                attendanceData: payload
+                attendanceData: payload,
+                notes: notes
             });
             setMessage({ type: 'success', text: 'Attendance updated and notifications triggered!' });
         } catch (err) {
@@ -81,97 +81,206 @@ const AttendanceGrid = () => {
         setLoading(false);
     };
 
-    return (
-        <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-800">Attendance Register</h1>
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+    };
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex gap-4 items-end">
-                <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Batch</label>
-                    <select
-                        value={selectedBatch}
-                        onChange={(e) => setSelectedBatch(e.target.value)}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg bg-white"
-                    >
-                        <option value="">-- Choose Batch --</option>
-                        {batches.map(b => <option key={b._id} value={b._id}>{b.name} - {b.subject}</option>)}
-                    </select>
+    const itemVariants = {
+        hidden: { opacity: 0, scale: 0.95 },
+        visible: { opacity: 1, scale: 1 }
+    };
+
+    return (
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="space-y-8 max-w-7xl mx-auto pb-20"
+        >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-4xl font-black tracking-tight text-white mb-2">Attendance <span className="text-accent underline decoration-accent/30 decoration-4 underline-offset-8">Central</span></h1>
+                    <p className="text-gray-400 font-medium">Verify presence and broadcast status to stakeholders.</p>
                 </div>
-                <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                <div className="flex items-center space-x-3 bg-white/5 p-2 rounded-2xl border border-white/10">
+                    <Calendar size={20} className="text-accent ml-2" />
                     <input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-800"
+                        className="bg-transparent border-none text-white font-bold text-sm focus:ring-0 cursor-pointer p-2"
                     />
                 </div>
             </div>
 
-            {message && (
-                <div className={`p-4 rounded-lg flex items-center space-x-2 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    <AlertCircle size={20} />
-                    <span>{message.text}</span>
-                </div>
-            )}
-
-            {selectedBatch && !loading && students.length === 0 && (
-                <div className="text-center p-8 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
-                    No students currently enrolled in this batch.
-                </div>
-            )}
-
-            {selectedBatch && students.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm uppercase tracking-wider">
-                                <th className="p-4 font-semibold">Student Name</th>
-                                <th className="p-4 font-semibold">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {students.map(student => {
-                                const id = student.userId._id;
-                                const status = attendanceData[id] || 'Present';
-                                return (
-                                    <tr key={id} className="border-b border-gray-50 hover:bg-gray-50">
-                                        <td className="p-4 font-medium text-gray-800">{student.userId.name}</td>
-                                        <td className="p-4">
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => handleStatusChange(id, 'Present')}
-                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${status === 'Present' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-green-100'}`}
-                                                >Present</button>
-                                                <button
-                                                    onClick={() => handleStatusChange(id, 'Absent')}
-                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${status === 'Absent' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}
-                                                >Absent</button>
-                                                <button
-                                                    onClick={() => handleStatusChange(id, 'Late')}
-                                                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${status === 'Late' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-yellow-100'}`}
-                                                >Late</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-
-                    <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
-                        <button
-                            onClick={submitBulkAttendance}
-                            disabled={loading}
-                            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg flex items-center space-x-2 hover:bg-blue-700 font-semibold disabled:opacity-50"
+            <motion.div
+                variants={itemVariants}
+                className="glass-card p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row gap-6 items-end"
+            >
+                <div className="flex-1 w-full">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 mb-2 block">Protocol Node (Select Batch)</label>
+                    <div className="relative">
+                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-accent" size={20} />
+                        <select
+                            value={selectedBatch}
+                            onChange={(e) => setSelectedBatch(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-white font-bold focus:outline-none focus:border-accent appearance-none cursor-pointer"
                         >
-                            <Save size={20} />
-                            <span>{loading ? 'Saving...' : 'Save & Send SMS'}</span>
-                        </button>
+                            <option value="" className="bg-surface">-- Select Target Batch --</option>
+                            {batches.map(b => <option key={b._id} value={b._id} className="bg-surface">{b.name} - {b.subject}</option>)}
+                        </select>
                     </div>
                 </div>
+                <div className="flex-1 w-full">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 mb-2 block">Operation Notes</label>
+                    <div className="relative">
+                        <ClipboardCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-highlight" size={20} />
+                        <input
+                            type="text"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Shift details..."
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-white font-bold focus:outline-none focus:border-highlight"
+                        />
+                    </div>
+                </div>
+                {selectedBatch && students.length > 0 && (
+                    <motion.button
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={submitBulkAttendance}
+                        disabled={loading}
+                        className="bg-accent text-white px-8 py-4 rounded-2xl flex items-center space-x-3 font-black text-sm tracking-widest uppercase shadow-xl shadow-accent/20 disabled:opacity-50 h-[60px]"
+                    >
+                        {loading ? <Clock className="animate-spin" /> : <Save size={20} strokeWidth={3} />}
+                        <span>{loading ? 'SYNCING...' : 'COMMIT STATUS'}</span>
+                    </motion.button>
+                )}
+            </motion.div>
+
+            <AnimatePresence>
+                {message && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className={`p-6 rounded-[2rem] flex items-center space-x-4 border shadow-2xl ${message.type === 'success' ? 'bg-emerald-400/10 border-emerald-400/20 text-emerald-400' : 'bg-red-400/10 border-red-400/20 text-red-400'}`}
+                    >
+                        <AlertCircle size={24} />
+                        <span className="font-bold tracking-tight">{message.text}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {selectedBatch && (
+                <motion.div
+                    initial="hidden"
+                    animate="visible"
+                    variants={itemVariants}
+                    className="glass-card rounded-[3rem] border border-white/5 overflow-hidden shadow-4xl"
+                >
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-white/5 border-b border-white/5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    <th className="p-8">Student Identifier</th>
+                                    <th className="p-8 text-right">Status Matrix</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/[0.02]">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan="2" className="py-24 text-center opacity-40">
+                                            <Clock size={48} className="mx-auto mb-4 text-accent animate-spin" />
+                                            <p className="text-xl font-black uppercase tracking-[0.3em] text-accent">Initializing Node Synchronizer...</p>
+                                        </td>
+                                    </tr>
+                                ) : students.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="2" className="py-24 text-center opacity-40">
+                                            <Search size={48} className="mx-auto mb-4 text-gray-600 animate-pulse" />
+                                            <p className="text-xl font-black uppercase tracking-[0.3em]">No Personnel Detected in Cluster</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    students.map(student => {
+                                        const resolvedUser = student.userId?._id ? student.userId : (typeof student.userId === 'object' ? student.userId : { _id: student.userId });
+                                        const id = resolvedUser._id || student._id;
+                                        if (!id) return null;
+                                        const status = attendanceData[id] || 'Present';
+                                        return (
+                                            <motion.tr
+                                                key={id}
+                                                whileHover={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                                                className="transition-colors group"
+                                            >
+                                                <td className="p-8">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent/20 to-highlight/20 flex items-center justify-center text-accent font-black border border-white/10">
+                                                            {resolvedUser.name?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-white text-lg tracking-tight group-hover:text-accent transition-colors">{resolvedUser.name || 'ANONYMOUS_ENTITY'}</p>
+                                                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5">UID: {id.toString().slice(-8)}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-8 text-right">
+                                                    <div className="inline-flex p-1.5 bg-white/5 rounded-[1.5rem] border border-white/10 gap-2">
+                                                        <StatusButton
+                                                            active={status === 'Present'}
+                                                            onClick={() => handleStatusChange(id, 'Present')}
+                                                            icon={<CheckCircle2 size={16} />}
+                                                            label="Present"
+                                                            color="emerald"
+                                                        />
+                                                        <StatusButton
+                                                            active={status === 'Absent'}
+                                                            onClick={() => handleStatusChange(id, 'Absent')}
+                                                            icon={<XCircle size={16} />}
+                                                            label="Absent"
+                                                            color="red"
+                                                        />
+                                                        <StatusButton
+                                                            active={status === 'Late'}
+                                                            onClick={() => handleStatusChange(id, 'Late')}
+                                                            icon={<Clock size={16} />}
+                                                            label="Late"
+                                                            color="amber"
+                                                        />
+                                                    </div>
+                                                </td>
+                                            </motion.tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </motion.div>
             )}
-        </div>
+        </motion.div>
+    );
+};
+
+const StatusButton = ({ active, onClick, icon, label, color }) => {
+    const variants = {
+        emerald: active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-400/40' : 'text-gray-500 bg-transparent border-transparent hover:bg-emerald-500/5 hover:text-emerald-400',
+        red: active ? 'bg-red-500/20 text-red-400 border-red-400/40' : 'text-gray-500 bg-transparent border-transparent hover:bg-red-500/5 hover:text-red-400',
+        amber: active ? 'bg-amber-500/20 text-amber-400 border-amber-400/40' : 'text-gray-500 bg-transparent border-transparent hover:bg-amber-500/5 hover:text-amber-400',
+    };
+
+    return (
+        <button
+            onClick={onClick}
+            className={`flex items-center space-x-2 px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${variants[color]}`}
+        >
+            {icon}
+            <span>{label}</span>
+        </button>
     );
 };
 

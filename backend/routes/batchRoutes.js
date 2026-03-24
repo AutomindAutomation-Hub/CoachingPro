@@ -10,7 +10,10 @@ router.get('/', protect, async (req, res) => {
         if (req.user.role === 'Teacher') {
             query.teacherId = req.user._id;
         }
-        const batches = await Batch.find(query).populate('teacherId', 'name email');
+        // Use lean for performance as we don't need mongoose document functions
+        const batches = await Batch.find(query)
+            .populate('teacherId', 'name email')
+            .lean();
         res.json(batches);
     } catch (error) {
         res.status(500).json({ message: error.message });

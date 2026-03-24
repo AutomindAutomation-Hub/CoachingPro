@@ -7,11 +7,25 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // Get all students
 router.get('/', protect, async (req, res) => {
     try {
-        // Find users with role Student
-        const users = await User.find({ role: 'Student' }).select('-password');
-        // For full details, would join with Student collection
-        const studentsData = await Student.find().populate('userId').populate('batchIds').populate('parentId', 'name email');
+        const studentsData = await Student.find()
+            .populate('userId', 'name email phone')
+            .populate('batchIds', 'name subject')
+            .populate('parentId', 'name email')
+            .lean();
         res.json(studentsData);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get students for a specific batch
+router.get('/batch/:batchId', protect, async (req, res) => {
+    try {
+        const students = await Student.find({ batchIds: req.params.batchId })
+            .populate('userId', 'name email phone')
+            .populate('batchIds', 'name subject')
+            .lean();
+        res.json(students);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

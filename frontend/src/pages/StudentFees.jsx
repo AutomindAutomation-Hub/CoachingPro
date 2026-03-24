@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { IndianRupee, Printer, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { IndianRupee, Printer, AlertTriangle, CheckCircle, Clock, ShieldCheck, CreditCard, Receipt, Layers, Search, Zap } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const StudentFees = () => {
     const { user } = useAuthStore();
@@ -35,13 +36,10 @@ const StudentFees = () => {
         setLoading(true);
         try {
             const { data } = await axios.post(`/fees/${fee._id}/pay-online`, { amountPaid: amountToPay });
-            alert(`Payment Successful! TXN ID: ${data.fee.receiptId}`);
 
-            // Generate PDF Receipt immediately on payment
             const paidFee = data.fee;
             generateReceiptPDF(user.name, fee.batchId.name, paidFee, amountToPay);
 
-            // Refresh data
             const feeRes = await axios.get(`/fees/student/${user._id}`);
             setFees(feeRes.data);
 
@@ -92,80 +90,172 @@ const StudentFees = () => {
     const getStatusBadge = (status, dueDate) => {
         const isPastDue = new Date(dueDate) < new Date() && status !== 'Paid';
 
-        if (status === 'Paid') return <span className="bg-green-100 text-green-800 text-xs px-2.5 py-1 rounded-full font-bold flex items-center max-w-min space-x-1"><CheckCircle size={14} /><span>Paid</span></span>;
-        if (isPastDue) return <span className="bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded-full font-bold flex items-center max-w-min space-x-1"><AlertTriangle size={14} /><span>Defaulter</span></span>;
-        if (status === 'Partial') return <span className="bg-yellow-100 text-yellow-800 text-xs px-2.5 py-1 rounded-full font-bold">Partial</span>;
-        return <span className="bg-gray-100 text-gray-800 text-xs px-2.5 py-1 rounded-full font-bold flex items-center max-w-min space-x-1"><Clock size={14} /><span>Pending</span></span>;
+        if (status === 'Paid') return (
+            <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest flex items-center bg-white/5 border border-emerald-500/30 w-fit">
+                <CheckCircle size={12} className="mr-2" />
+                <span>Cleared</span>
+            </div>
+        );
+        if (isPastDue) return (
+            <div className="bg-red-500/20 text-red-500 text-[10px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest flex items-center bg-white/5 border border-red-500/30 w-fit">
+                <AlertTriangle size={12} className="mr-2" />
+                <span>Overdue</span>
+            </div>
+        );
+        if (status === 'Partial') return (
+            <div className="bg-amber-500/20 text-amber-500 text-[10px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest flex items-center bg-white/5 border border-amber-500/30 w-fit">
+                <Zap size={12} className="mr-2" />
+                <span>Partial</span>
+            </div>
+        );
+        return (
+            <div className="bg-gray-500/20 text-gray-400 text-[10px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest flex items-center bg-white/5 border border-white/10 w-fit">
+                <Clock size={12} className="mr-2" />
+                <span>Pending</span>
+            </div>
+        );
     };
 
-    if (loading) return <div className="p-8 text-center">Loading Fees...</div>;
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 }
+    };
+
+    if (loading) return (
+        <div className="min-h-[400px] flex items-center justify-center">
+            <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                className="p-4 bg-accent/20 rounded-full border border-accent/20"
+            >
+                <Layers className="text-accent" size={40} />
+            </motion.div>
+        </div>
+    );
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto pb-10">
-            <h1 className="text-3xl font-bold text-gray-800 flex items-center space-x-3 mb-8">
-                <IndianRupee className="text-indigo-600" size={32} />
-                <span>My Fees & Payments</span>
-            </h1>
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="space-y-10 max-w-7xl mx-auto pb-20"
+        >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                    <h1 className="text-4xl font-black tracking-tighter text-white flex items-center space-x-4">
+                        <div className="p-3 bg-accent/20 rounded-2xl border border-accent/20 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+                            <IndianRupee className="text-accent" size={32} />
+                        </div>
+                        <span>Financial <span className="gradient-text">Ledger</span></span>
+                    </h1>
+                    <p className="text-gray-400 font-medium mt-2">Manage your resource credits and transaction certificates.</p>
+                </div>
+            </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-gray-800">Fee Ledger</h2>
+            <motion.div
+                variants={itemVariants}
+                className="glass-card rounded-[3rem] border border-white/5 overflow-hidden shadow-4xl"
+            >
+                <div className="p-8 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                    <h2 className="text-xl font-black text-white tracking-tight flex items-center uppercase">
+                        <Receipt size={20} className="text-accent mr-3" />
+                        Transaction History
+                    </h2>
                 </div>
 
-                <div className="overflow-x-auto p-4">
+                <div className="overflow-x-auto">
                     {fees.length === 0 ? (
-                        <div className="text-center text-gray-500 p-8">
-                            <p className="text-lg font-semibold mb-2">No fee records found.</p>
-                            <p>You currently do not have any fee dues generated.</p>
+                        <div className="text-center py-32">
+                            <div className="flex flex-col items-center opacity-20">
+                                <Search size={64} className="mb-6 text-gray-600" />
+                                <p className="text-2xl font-black uppercase tracking-[0.3em]">No Records Found</p>
+                            </div>
                         </div>
                     ) : (
-                        <table className="w-full text-left text-sm">
+                        <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                                    <th className="pb-3 text-left font-semibold">Month / Due Date</th>
-                                    <th className="pb-3 text-left font-semibold">Batch</th>
-                                    <th className="pb-3 text-left font-semibold">Amount Due</th>
-                                    <th className="pb-3 text-left font-semibold">Status</th>
-                                    <th className="pb-3 text-right font-semibold">Action</th>
+                                <tr className="bg-white/5 border-b border-white/5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    <th className="p-8">Temporal Unit / Deadline</th>
+                                    <th className="p-8">Operations Node</th>
+                                    <th className="p-8">Resource Value</th>
+                                    <th className="p-8">Status</th>
+                                    <th className="p-8 text-right">Commit Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-white/[0.02]">
                                 {fees.map(f => (
-                                    <tr key={f._id} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="py-4">
-                                            <p className="font-medium text-gray-800">{f.month}</p>
-                                            <p className="text-xs text-gray-500">Due: {format(new Date(f.dueDate), 'dd MMM yyyy')}</p>
+                                    <motion.tr
+                                        key={f._id}
+                                        whileHover={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                                        className="transition-colors group"
+                                    >
+                                        <td className="p-8">
+                                            <div className="space-y-1">
+                                                <p className="font-black text-white text-lg tracking-tight group-hover:text-accent transition-colors">{f.month}</p>
+                                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Expires: {format(new Date(f.dueDate), 'dd MMM yyyy')}</p>
+                                            </div>
                                         </td>
-                                        <td className="py-4">
-                                            <p className="text-sm text-gray-600">{f.batchId?.name}</p>
+                                        <td className="p-8">
+                                            <div className="flex items-center space-x-2">
+                                                <div className="p-1 px-3 bg-white/5 rounded-lg border border-white/10 text-xs font-bold text-gray-400">
+                                                    {f.batchId?.name}
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="py-4">
-                                            <p className="font-bold text-gray-800">₹{f.dueAmount}</p>
-                                            {f.paidAmount > 0 && <p className="text-xs text-green-600 font-semibold">Paid: ₹{f.paidAmount}</p>}
+                                        <td className="p-8">
+                                            <div className="space-y-1">
+                                                <p className="font-black text-white text-xl tracking-tighter group-hover:text-highlight transition-colors flex items-center">
+                                                    <IndianRupee size={16} className="mr-0.5" />
+                                                    {f.dueAmount}
+                                                </p>
+                                                {f.paidAmount > 0 && (
+                                                    <div className="flex items-center space-x-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                                                        <ShieldCheck size={10} />
+                                                        <span>Synced: ₹{f.paidAmount}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className="py-4">
+                                        <td className="p-8">
                                             {getStatusBadge(f.status, f.dueDate)}
                                         </td>
-                                        <td className="py-4 text-right">
+                                        <td className="p-8 text-right">
                                             {f.status !== 'Paid' ? (
-                                                <button onClick={() => handleOnlinePayment(f)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm">
-                                                    Pay ₹{f.dueAmount - f.paidAmount} Now
-                                                </button>
+                                                <motion.button
+                                                    whileHover={{ scale: 1.05, shadow: "0 0 20px rgba(99,102,241,0.3)" }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    onClick={() => handleOnlinePayment(f)}
+                                                    className="bg-accent text-white px-6 py-3 rounded-2xl font-black text-[10px] tracking-[0.2em] uppercase transition-all shadow-lg flex items-center space-x-2 ml-auto"
+                                                >
+                                                    <CreditCard size={14} />
+                                                    <span>Pay ₹{f.dueAmount - f.paidAmount}</span>
+                                                </motion.button>
                                             ) : (
-                                                <button onClick={() => generateReceiptPDF(user.name, f.batchId?.name, f, f.dueAmount)} className="text-blue-600 hover:text-blue-800 flex flex-col items-center justify-end w-full" title="Download Receipt">
-                                                    <Printer size={20} />
-                                                    <span className="text-[10px] uppercase font-bold mt-1">Receipt</span>
-                                                </button>
+                                                <motion.button
+                                                    whileHover={{ scale: 1.1, color: "#22d3ee" }}
+                                                    whileTap={{ scale: 0.9 }}
+                                                    onClick={() => generateReceiptPDF(user.name, f.batchId?.name, f, f.dueAmount)}
+                                                    className="p-3 bg-white/5 border border-white/10 text-gray-400 rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center space-x-2 ml-auto group/btn"
+                                                    title="Download Receipt"
+                                                >
+                                                    <Printer size={18} className="group-hover/btn:rotate-12 transition-transform" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">CERTIFICATE</span>
+                                                </motion.button>
                                             )}
                                         </td>
-                                    </tr>
+                                    </motion.tr>
                                 ))}
                             </tbody>
                         </table>
                     )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
 

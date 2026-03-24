@@ -6,6 +6,7 @@ const attendanceSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     status: { type: String, enum: ['Present', 'Absent', 'Late'], required: true },
     markedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    notes: { type: String },
 }, { timestamps: true });
 
 // Prevent duplicate attendance for same student, batch, and date

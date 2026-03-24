@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Save, ClipboardList, TrendingUp } from 'lucide-react';
+import { Save, ClipboardList, TrendingUp, Layers, Zap, Search, User, Target, ChevronRight, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MarksEntry = () => {
     const { user } = useAuthStore();
@@ -34,19 +35,23 @@ const MarksEntry = () => {
 
         const loadBatchData = async () => {
             try {
-                // Get batch roster
-                const stuRes = await axios.get('/students');
-                const batchStudents = stuRes.data.filter(s => s.batchIds?.some(b => (b._id || b) === selectedBatch));
+                // Fetch only students for this batch
+                const stuRes = await axios.get(`/students/batch/${selectedBatch}`);
+                const batchStudents = stuRes.data;
                 setStudents(batchStudents);
 
                 // Init blank marks mapping for 'new'
                 const blankData = {};
-                batchStudents.forEach(s => blankData[s.userId._id] = '');
+                batchStudents.forEach(s => {
+                    const userId = s.userId?._id || s.userId;
+                    if (userId) blankData[userId] = '';
+                });
 
                 // Get existing tests
                 const testRes = await axios.get(`/tests/${selectedBatch}`);
                 setExistingTests(testRes.data);
 
+                // If we are on 'new' test, initialize with blank data
                 if (selectedTestId === 'new') {
                     setTestName('');
                     setMaxMarks(100);
@@ -55,19 +60,23 @@ const MarksEntry = () => {
 
             } catch (err) {
                 console.error(err);
+                setMessage({ type: 'error', text: 'System Error: Failed to retrieve cluster personnel. Check connection logic.' });
             }
             setLoading(false);
         };
         loadBatchData();
-    }, [selectedBatch, selectedTestId]);
+    }, [selectedBatch]); // Removed selectedTestId to avoid redundant reload
 
-    // Handle test selection toggle
+    // Separate logic to switch marks mapping based on test selection
     useEffect(() => {
         if (!selectedBatch || students.length === 0) return;
 
         if (selectedTestId === 'new') {
             const blankData = {};
-            students.forEach(s => blankData[s.userId._id] = '');
+            students.forEach(s => {
+                const userId = s.userId?._id || s.userId;
+                if (userId) blankData[userId] = '';
+            });
             setMarksData(blankData);
             setTestName('');
             setMaxMarks(100);
@@ -81,11 +90,17 @@ const MarksEntry = () => {
             setTestDate(new Date(test.date).toISOString().split('T')[0]);
             setMaxMarks(test.maxMarks);
             const loadedMarks = {};
-            students.forEach(s => loadedMarks[s.userId._id] = ''); // Set default
+
+            // Initialize with empty for all students currently in state
+            students.forEach(s => {
+                const userId = s.userId?._id || s.userId;
+                if (userId) loadedMarks[userId] = '';
+            });
 
             test.results.forEach(res => {
-                if (res.studentId) { // Check if student still exists
-                    loadedMarks[res.studentId._id] = res.status === 'Absent' ? 'A' : res.marksObtained;
+                if (res.studentId) {
+                    const id = res.studentId._id || res.studentId;
+                    loadedMarks[id] = res.status === 'Absent' ? 'A' : res.marksObtained;
                 }
             });
             setMarksData(loadedMarks);
@@ -139,128 +154,221 @@ const MarksEntry = () => {
         setLoading(false);
     };
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 }
+    };
+
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-800 flex items-center space-x-3">
-                <ClipboardList className="text-blue-600" size={32} />
-                <span>Test & Marks Entry</span>
-            </h1>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 grid md:grid-cols-2 gap-6">
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="space-y-10 max-w-7xl mx-auto pb-20"
+        >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Batch</label>
-                    <select
-                        value={selectedBatch}
-                        onChange={(e) => { setSelectedBatch(e.target.value); setSelectedTestId('new'); }}
-                        className="w-full p-2.5 border border-gray-300 rounded-lg"
-                    >
-                        <option value="">-- Choose Batch --</option>
-                        {batches.map(b => <option key={b._id} value={b._id}>{b.name} - {b.subject}</option>)}
-                    </select>
+                    <h1 className="text-4xl font-black tracking-tighter text-white flex items-center space-x-4">
+                        <div className="p-3 bg-accent/20 rounded-2xl border border-accent/20 shadow-[0_0_20px_rgba(99,102,241,0.2)] text-accent">
+                            <ClipboardList size={32} />
+                        </div>
+                        <span>Evaluation <span className="gradient-text">Matrix</span></span>
+                    </h1>
+                    <p className="text-gray-400 font-medium mt-2">Log and synchronize student performance benchmarks.</p>
                 </div>
-
-                {selectedBatch && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Action / Test File</label>
-                        <select
-                            value={selectedTestId}
-                            onChange={(e) => setSelectedTestId(e.target.value)}
-                            className="w-full p-2.5 border border-gray-300 rounded-lg text-blue-700 font-medium bg-blue-50"
-                        >
-                            <option value="new">+ Create New Test Record</option>
-                            {existingTests.map(t => (
-                                <option key={t._id} value={t._id}>Edit: {t.testName} ({new Date(t.date).toLocaleDateString()})</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
             </div>
 
-            {message && (
-                <div className={`p-4 rounded-lg font-medium text-center ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {message.text}
-                </div>
-            )}
+            <motion.div
+                variants={itemVariants}
+                className="glass-card p-10 rounded-[3rem] border border-white/5 shadow-4xl relative overflow-hidden"
+            >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent via-highlight to-accent animate-pulse" />
 
-            {selectedBatch && (
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
-                    <div className="grid md:grid-cols-3 gap-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Test Name</label>
-                            <input
-                                type="text" value={testName} onChange={(e) => setTestName(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg" placeholder="e.g. Weekly Mock 1" required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <input
-                                type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg" required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Max Marks</label>
-                            <input
-                                type="number" value={maxMarks} onChange={(e) => setMaxMarks(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg" required min="1"
-                            />
+                <div className="grid md:grid-cols-2 gap-8 z-10 relative">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Target Cluster</label>
+                        <div className="relative">
+                            <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-accent" size={20} />
+                            <select
+                                value={selectedBatch}
+                                onChange={(e) => { setSelectedBatch(e.target.value); setSelectedTestId('new'); }}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-white font-bold focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer"
+                            >
+                                <option value="" className="bg-surface italic text-gray-500">-- Select Operational Node --</option>
+                                {batches.map(b => <option key={b._id} value={b._id} className="bg-surface">{b.name} - {b.subject}</option>)}
+                            </select>
                         </div>
                     </div>
 
-                    {students.length === 0 ? (
-                        <p className="text-center text-gray-400 py-8">No students found in this batch to grade.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="bg-blue-600 text-white text-sm uppercase">
-                                        <th className="p-3 rounded-tl-lg font-semibold">Student Name</th>
-                                        <th className="p-3 font-semibold w-48 text-center">Marks Obtained</th>
-                                        <th className="p-3 rounded-tr-lg font-semibold w-24">Grade %</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {students.map((student, i) => {
-                                        const id = student.userId._id;
-                                        const val = marksData[id] || '';
-                                        const numVal = Number(val);
-                                        const percent = (!isNaN(numVal) && maxMarks > 0) ? ((numVal / maxMarks) * 100).toFixed(1) : '-';
-
-                                        return (
-                                            <tr key={id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                                                <td className="p-3 font-medium text-gray-700">{student.userId.name}</td>
-                                                <td className="p-3 text-center">
-                                                    <input
-                                                        type="text"
-                                                        value={val}
-                                                        onChange={(e) => handleMarksChange(id, e.target.value)}
-                                                        className="w-24 p-1.5 text-center border border-gray-300 rounded font-bold text-blue-600 focus:ring-2 focus:ring-blue-500"
-                                                        placeholder="Marks / 'A'"
-                                                    />
-                                                </td>
-                                                <td className="p-3 text-gray-500 font-semibold">{val === 'A' ? 'Absent' : `${percent}%`}</td>
-                                            </tr>
-                                        )
-                                    })}
-                                </tbody>
-                            </table>
-                            <div className="mt-6 flex justify-end">
-                                <button
-                                    onClick={submitMarks}
-                                    disabled={loading}
-                                    className="bg-green-600 text-white px-8 py-3 rounded-xl flex items-center space-x-2 font-bold hover:bg-green-700 shadow-md hover:shadow-lg transition disabled:opacity-50"
+                    {selectedBatch && (
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Session Protocol</label>
+                            <div className="relative text-accent">
+                                <Zap className="absolute left-4 top-1/2 -translate-y-1/2" size={20} />
+                                <select
+                                    value={selectedTestId}
+                                    onChange={(e) => setSelectedTestId(e.target.value)}
+                                    className="w-full bg-accent/10 border border-accent/20 rounded-2xl py-4 pl-12 pr-6 text-accent font-black tracking-tight focus:outline-none appearance-none cursor-pointer"
                                 >
-                                    <Save size={20} />
-                                    <span>{selectedTestId === 'new' ? 'Save New Marks' : 'Update Record'}</span>
-                                </button>
+                                    <option value="new" className="bg-surface text-accent">+ INITIALIZE NEW RECORD</option>
+                                    {existingTests.map(t => (
+                                        <option key={t._id} value={t._id} className="bg-surface text-white italic">
+                                            SYNced: {t.testName} ({new Date(t.date).toLocaleDateString()})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
                 </div>
+            </motion.div>
+
+            <AnimatePresence>
+                {message && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        className={`p-6 rounded-[2.5rem] border-2 shadow-2xl backdrop-blur-xl flex items-center space-x-4 ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-500'}`}
+                    >
+                        {message.type === 'success' ? <CheckCircle size={28} /> : <AlertCircle size={28} />}
+                        <span className="text-lg font-black tracking-tight">{message.text}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {selectedBatch && (
+                <motion.div
+                    initial="hidden"
+                    animate="visible"
+                    variants={itemVariants}
+                    className="glass-card rounded-[3.5rem] border border-white/5 overflow-hidden shadow-4xl mb-12"
+                >
+                    <div className="p-10 border-b border-white/5 bg-white/5">
+                        <div className="grid md:grid-cols-3 gap-8">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Resource Title</label>
+                                <input
+                                    type="text" value={testName} onChange={(e) => setTestName(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-highlight transition-all" placeholder="e.g. Mock Cycle A1" required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Temporal Stamp</label>
+                                <input
+                                    type="date" value={testDate} onChange={(e) => setTestDate(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white font-bold focus:outline-none focus:border-highlight transition-all" required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Peak Magnitude (Max)</label>
+                                <input
+                                    type="number" value={maxMarks} onChange={(e) => setMaxMarks(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white font-bold focus:outline-none focus:border-highlight transition-all" required min="1"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-2 md:p-10">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-white/5 border-b border-white/5 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                                        <th className="p-8">Node Identifier</th>
+                                        <th className="p-8 text-center">Magnitude Logged</th>
+                                        <th className="p-8 text-right">Proficiency</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/[0.02]">
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan="3" className="py-24 text-center opacity-40">
+                                                <Clock size={48} className="mx-auto mb-4 text-highlight animate-spin" />
+                                                <p className="text-xl font-black uppercase tracking-[0.3em] text-highlight">Accessing Evaluation Logs...</p>
+                                            </td>
+                                        </tr>
+                                    ) : students.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="3" className="py-20 text-center opacity-40">
+                                                <Search size={48} className="mx-auto mb-4 text-gray-600 animate-pulse" />
+                                                <p className="text-xl font-black uppercase tracking-[0.3em]">No Personnel Detected in Cluster</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        students.map((student, i) => {
+                                            const resolvedUser = student.userId?._id ? student.userId : (typeof student.userId === 'object' ? student.userId : { _id: student.userId });
+                                            const id = resolvedUser._id || student._id;
+                                            if (!id) return null;
+
+                                            const val = marksData[id] || '';
+                                            const numVal = Number(val);
+                                            const percent = (!isNaN(numVal) && maxMarks > 0) ? ((numVal / maxMarks) * 100).toFixed(1) : '-';
+
+                                            return (
+                                                <motion.tr
+                                                    key={id}
+                                                    whileHover={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                                                    className="transition-colors group"
+                                                >
+                                                    <td className="p-8">
+                                                        <div className="flex items-center space-x-4">
+                                                            <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-gray-500 group-hover:text-accent transition-colors">
+                                                                <User size={20} />
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-black text-white text-lg tracking-tight uppercase leading-none group-hover:text-accent transition-all">{resolvedUser.name || 'ANONYMOUS_ENTITY'}</p>
+                                                                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mt-1">UID: {id.toString().slice(-8)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-8">
+                                                        <input
+                                                            type="text"
+                                                            value={val}
+                                                            onChange={(e) => handleMarksChange(id, e.target.value)}
+                                                            className="w-32 mx-auto bg-white/5 border border-white/10 p-3 rounded-2xl text-center font-black text-highlight focus:outline-none focus:border-highlight transition-all shadow-inner tracking-widest uppercase placeholder-gray-700 block"
+                                                            placeholder="MAG / 'A'"
+                                                        />
+                                                    </td>
+                                                    <td className="p-8 text-right">
+                                                        <div className={`text-[10px] px-4 py-2 rounded-xl font-black uppercase tracking-widest inline-block shadow-inner ${val === 'A' || val === 'a' ? 'bg-rose-500/10 border border-rose-500/20 text-rose-500' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
+                                                            {val === 'A' || val === 'a' ? 'ABORTED' : `${percent}%`}
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            )
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+
+                            {students.length > 0 && (
+                                <div className="p-10 border-t border-white/5 flex justify-end">
+                                    <motion.button
+                                        whileHover={{ scale: 1.05, shadow: "0 0 30px rgba(16,185,129,0.3)" }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={submitMarks}
+                                        disabled={loading}
+                                        className="bg-emerald-500 text-black px-12 py-5 rounded-[2rem] flex items-center space-x-4 font-black text-sm tracking-[0.2em] uppercase transition-all shadow-xl disabled:opacity-50"
+                                    >
+                                        <Save size={24} strokeWidth={3} />
+                                        <span>{selectedTestId === 'new' ? 'DEPLOY DATA' : 'UPDATE SYNC'}</span>
+                                    </motion.button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
             )}
-        </div>
+        </motion.div>
     );
 };
 
 export default MarksEntry;
+
