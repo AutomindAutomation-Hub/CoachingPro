@@ -18,6 +18,8 @@ import StudentProgress from './pages/StudentProgress';
 import StudentFees from './pages/StudentFees';
 import Quizzes from './pages/Quizzes';
 import Enrollment from './pages/Enrollment';
+import Settings from './pages/Settings';
+import Terminal from './pages/Terminal';
 import { useAuthStore } from './store/authStore';
 import { useEffect } from 'react';
 import axios from 'axios';
@@ -95,7 +97,8 @@ function App() {
 
           {/* Phase 4 Routes */}
           <Route path="quizzes" element={<ProtectedRoute allowedRoles={['Admin', 'Teacher', 'Student']}><Quizzes /></ProtectedRoute>} />
-
+          <Route path="settings" element={<ProtectedRoute allowedRoles={['Admin']}><Settings /></ProtectedRoute>} />
+          <Route path="terminal" element={<ProtectedRoute allowedRoles={['Admin']}><Terminal /></ProtectedRoute>} />
         </Route>
       </Routes>
     </BrowserRouter>

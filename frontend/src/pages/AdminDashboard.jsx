@@ -95,7 +95,7 @@ const AdminDashboard = () => {
                         <motion.div
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => alert('Administrative Settings Interface: ACCESS_DENIED. Please contact system architect.')}
+                            onClick={() => navigate('/settings')}
                             className="bg-white/5 backdrop-blur-xl p-4 rounded-[2rem] border border-white/10 shadow-inner flex items-center justify-center aspect-square cursor-pointer"
                         >
                             <Settings size={28} className="text-white opacity-40 hover:opacity-100 transition-opacity" />
@@ -257,7 +257,7 @@ const AdminDashboard = () => {
                         <motion.button
                             whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.08)" }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => alert('Initializing Secure Shell Environment... CONNECTION_REFUSED. Maintenance scheduled for next cycle.')}
+                            onClick={() => navigate('/terminal')}
                             className="mt-12 w-full py-6 glass bg-white/5 rounded-[2rem] group flex items-center justify-center space-x-3 transition-all duration-300 border border-white/10"
                         >
                             <Command size={20} className="text-accent" />
@@ -271,28 +271,32 @@ const AdminDashboard = () => {
             {/* Quick Access Grid */}
             <motion.div
                 variants={itemVariants}
-                className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6"
+                className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-6"
             >
                 {[
-                    { icon: Users, label: 'Personnel', color: 'accent', path: '/students' },
-                    { icon: LayoutGrid, label: 'Clusters', color: 'highlight', path: '/batches' },
-                    { icon: FileText, label: 'Archives', color: 'emerald-400', path: '/materials' },
-                    { icon: IndianRupee, label: 'Ledger', color: 'indigo-400', path: '/fees' },
-                    { icon: Bell, label: 'Alerts', color: 'rose-500', path: '/attendance' },
-                    { icon: Search, label: 'Terminal', color: 'amber-400', path: '/scan-qr' },
-                    { icon: Command, label: 'Control', color: 'slate-400', path: '/marks-entry' }
+                    { icon: Users, label: 'Students', color: 'text-accent', bg: 'bg-accent/10', path: '/students' },
+                    { icon: Users, label: 'Teachers', color: 'text-emerald-400', bg: 'bg-emerald-500/10', path: '/teachers' },
+                    { icon: LayoutGrid, label: 'Batches', color: 'text-highlight', bg: 'bg-highlight/10', path: '/batches' },
+                    { icon: FileText, label: 'Archives', color: 'text-indigo-400', bg: 'bg-indigo-500/10', path: '/materials' },
+                    { icon: IndianRupee, label: 'Ledgers', color: 'text-amber-400', bg: 'bg-amber-500/10', path: '/fees' },
+                    { icon: Bell, label: 'Attendance', color: 'text-rose-500', bg: 'bg-rose-500/10', path: '/attendance' },
+                    { icon: Search, label: 'Scanner', color: 'text-cyan-400', bg: 'bg-cyan-500/10', path: '/scan-qr' },
+                    { icon: Command, label: 'Controls', color: 'text-slate-400', bg: 'bg-slate-500/10', path: '/marks-entry' }
                 ].map((item, i) => (
                     <motion.div
                         key={i}
-                        whileHover={{ y: -5, backgroundColor: "rgba(255,255,255,0.05)" }}
+                        whileHover={{ y: -8, backgroundColor: "rgba(255,255,255,0.08)", scale: 1.02 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate(item.path)}
-                        className="glass-card p-6 rounded-3xl border border-white/5 flex flex-col items-center justify-center gap-4 cursor-pointer group"
+                        className="glass-card p-10 rounded-[2.5rem] border border-white/5 flex flex-col items-center justify-center gap-6 cursor-pointer group shadow-2xl transition-all duration-300"
                     >
-                        <div className={`p-4 rounded-2xl bg-white/5 group-hover:bg-white/10 text-${item.color} transition-all`}>
-                            <item.icon size={24} />
+                        <div className={`p-6 rounded-[2rem] ${item.bg} ${item.color} group-hover:scale-110 transition-all duration-500 shadow-inner border border-white/5`}>
+                            <item.icon size={32} />
                         </div>
-                        <span className="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] group-hover:text-white transition-colors">{item.label}</span>
+                        <div className="text-center">
+                            <span className="text-xs font-black uppercase text-gray-400 tracking-[0.3em] group-hover:text-white transition-colors">{item.label}</span>
+                            <div className="h-1 w-0 group-hover:w-full bg-gradient-to-r from-transparent via-accent to-transparent transition-all duration-500 mt-2 mx-auto" />
+                        </div>
                     </motion.div>
                 ))}
             </motion.div>

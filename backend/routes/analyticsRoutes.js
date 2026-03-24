@@ -5,15 +5,16 @@ const Student = require('../models/Student');
 const Batch = require('../models/Batch');
 const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
+const SystemSettings = require('../models/SystemSettings');
 const { protect, admin } = require('../middleware/authMiddleware');
 
 router.get('/', protect, admin, async (req, res) => {
     try {
+        const settings = await SystemSettings.findOne().sort({ createdAt: -1 });
+        const currentMonthLabel = settings?.academicCycle || new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
+
         // 1. Total Active Students
         const totalStudents = await Student.countDocuments();
-
-        // 2. Expected vs Collected Revenue (Current Month)
-        const currentMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
 
         // Aggregate over Fees
         const feeStats = await Fee.aggregate([
